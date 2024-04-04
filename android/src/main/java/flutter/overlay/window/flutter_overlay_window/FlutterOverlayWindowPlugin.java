@@ -46,6 +46,8 @@ public class FlutterOverlayWindowPlugin implements
     private Result pendingResult;
     final int REQUEST_CODE_FOR_OVERLAY_PERMISSION = 1248;
 
+    private String lastEngineId;
+
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
         this.context = flutterPluginBinding.getApplicationContext();
@@ -63,7 +65,6 @@ public class FlutterOverlayWindowPlugin implements
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
-        Log.d("onMethodCall", call.method);
         pendingResult = result;
         switch (call.method) {
             case "checkPermission":
@@ -88,6 +89,7 @@ public class FlutterOverlayWindowPlugin implements
                 String entryPoint = call.argument("entryPoint");
                 List<String> args = call.argument("args");
 
+                lastEngineId = engineId;
                 createDartEntry(engineId, entryPoint, args);
 
 
@@ -207,12 +209,11 @@ public class FlutterOverlayWindowPlugin implements
 
     @Override
     public void onMessage(@Nullable Object message, @NonNull BasicMessageChannel.Reply reply) {
-        Log.d("onMessage", message.toString() );
-//        BasicMessageChannel overlayMessageChannel = new BasicMessageChannel(
-//                FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG).getDartExecutor(),
-//                OverlayConstants.MESSENGER_TAG, JSONMessageCodec.INSTANCE
-//        );
-//        overlayMessageChannel.send(message, reply);
+       BasicMessageChannel overlayMessageChannel = new BasicMessageChannel(
+               FlutterEngineCache.getInstance().get(lastEngineId).getDartExecutor(),
+               OverlayConstants.MESSENGER_TAG, JSONMessageCodec.INSTANCE
+       );
+       overlayMessageChannel.send(message, reply);
     }
 
     private boolean checkOverlayPermission() {
