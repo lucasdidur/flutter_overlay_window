@@ -16,6 +16,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationManagerCompat;
 
+import java.util.List;
 import java.util.Map;
 
 import io.flutter.FlutterInjector;
@@ -62,74 +63,94 @@ public class FlutterOverlayWindowPlugin implements
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+        Log.d("onMethodCall", call.method);
         pendingResult = result;
-        if (call.method.equals("checkPermission")) {
-            result.success(checkOverlayPermission());
-        } else if (call.method.equals("requestPermission")) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
-                intent.setData(Uri.parse("package:" + mActivity.getPackageName()));
-                mActivity.startActivityForResult(intent, REQUEST_CODE_FOR_OVERLAY_PERMISSION);
-            } else {
-                result.success(true);
-            }
-        } else if (call.method.equals("showOverlay")) {
-            if (!checkOverlayPermission()) {
-                result.error("PERMISSION", "overlay permission is not enabled", null);
-                return;
-            }
-            Integer height = call.argument("height");
-            Integer width = call.argument("width");
-            String alignment = call.argument("alignment");
-            String flag = call.argument("flag");
-            String overlayTitle = call.argument("overlayTitle");
-            String overlayContent = call.argument("overlayContent");
-            String notificationVisibility = call.argument("notificationVisibility");
-            boolean enableDrag = call.argument("enableDrag");
-            String positionGravity = call.argument("positionGravity");
-            Map<String, Integer> startPosition = call.argument("startPosition");
-            int startX = startPosition != null ? startPosition.getOrDefault("x", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
-            int startY = startPosition != null ? startPosition.getOrDefault("y", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
+        switch (call.method) {
+            case "checkPermission":
+                result.success(checkOverlayPermission());
+                break;
+            case "requestPermission":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                    intent.setData(Uri.parse("package:" + mActivity.getPackageName()));
+                    mActivity.startActivityForResult(intent, REQUEST_CODE_FOR_OVERLAY_PERMISSION);
+                } else {
+                    result.success(true);
+                }
+                break;
+            case "showOverlay":
+                if (!checkOverlayPermission()) {
+                    result.error("PERMISSION", "overlay permission is not enabled", null);
+                    return;
+                }
+
+                String engineId = call.argument("engineId");
+                String entryPoint = call.argument("entryPoint");
+                List<String> args = call.argument("args");
+
+                createDartEntry(engineId, entryPoint, args);
 
 
-            WindowSetup.width = width != null ? width : -1;
-            WindowSetup.height = height != null ? height : -1;
-            WindowSetup.enableDrag = enableDrag;
-            WindowSetup.setGravityFromAlignment(alignment != null ? alignment : "center");
-            WindowSetup.setFlag(flag != null ? flag : "flagNotFocusable");
-            WindowSetup.overlayTitle = overlayTitle;
-            WindowSetup.overlayContent = overlayContent == null ? "" : overlayContent;
-            WindowSetup.positionGravity = positionGravity;
-            WindowSetup.setNotificationVisibility(notificationVisibility);
+                Integer height = call.argument("height");
+                Integer width = call.argument("width");
+                String alignment = call.argument("alignment");
+                String flag = call.argument("flag");
+                String overlayTitle = call.argument("overlayTitle");
+                String overlayContent = call.argument("overlayContent");
+                String notificationVisibility = call.argument("notificationVisibility");
+                boolean enableDrag = call.argument("enableDrag");
+                String positionGravity = call.argument("positionGravity");
+                Map<String, Integer> startPosition = call.argument("startPosition");
+                int startX = startPosition != null ? startPosition.getOrDefault("x", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
+                int startY = startPosition != null ? startPosition.getOrDefault("y", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
 
-            final Intent intent = new Intent(context, OverlayService.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putExtra("startX", startX);
-            intent.putExtra("startY", startY);
-            context.startService(intent);
-            result.success(null);
-        } else if (call.method.equals("isOverlayActive")) {
-            result.success(OverlayService.isRunning);
-            return;
-        } else if (call.method.equals("isOverlayActive")) {
-            result.success(OverlayService.isRunning);
-            return;
-        } else if (call.method.equals("moveOverlay")) {
-            int x = call.argument("x");
-            int y = call.argument("y");
-            result.success(OverlayService.moveOverlay(x, y));
-        } else if (call.method.equals("getOverlayPosition")) {
-            result.success(OverlayService.getCurrentPosition());
-        } else if (call.method.equals("closeOverlay")) {
-            if (OverlayService.isRunning) {
+
+                WindowSetup.width = width != null ? width : -1;
+                WindowSetup.height = height != null ? height : -1;
+                WindowSetup.enableDrag = enableDrag;
+                WindowSetup.setGravityFromAlignment(alignment != null ? alignment : "center");
+                WindowSetup.setFlag(flag != null ? flag : "flagNotFocusable");
+                WindowSetup.overlayTitle = overlayTitle;
+                WindowSetup.overlayContent = overlayContent == null ? "" : overlayContent;
+                WindowSetup.positionGravity = positionGravity;
+                WindowSetup.setNotificationVisibility(notificationVisibility);
+
+                final Intent intent = new Intent(context, OverlayService.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                intent.putExtra("startX", startX);
+                intent.putExtra("startY", startY);
+                intent.putExtra("engineId", engineId);
+                context.startService(intent);
+                result.success(null);
+                break;
+
+            case "closeOverlay":
                 final Intent i = new Intent(context, OverlayService.class);
                 context.stopService(i);
+
+                destroyDartEntry(call.argument("engineId"));
+
                 result.success(true);
-            }
-            return;
-        } else {
-            result.notImplemented();
+                return;
+
+            case "isOverlayActive":
+                result.success(isOverlayActive(call.argument("engineId")));
+                return;
+
+            case "moveOverlay":
+                int x = call.argument("x");
+                int y = call.argument("y");
+                result.success(OverlayService.moveOverlay(x, y));
+                break;
+
+            case "getOverlayPosition":
+                result.success(OverlayService.getCurrentPosition());
+                break;
+
+            default:
+                result.notImplemented();
+                break;
         }
 
     }
@@ -143,14 +164,32 @@ public class FlutterOverlayWindowPlugin implements
     @Override
     public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
         mActivity = binding.getActivity();
-        if (FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG) == null) {
-            FlutterEngineGroup enn = new FlutterEngineGroup(context);
-            DartExecutor.DartEntrypoint dEntry = new DartExecutor.DartEntrypoint(
-                    FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-                    "overlayMain");
-            FlutterEngine engine = enn.createAndRunEngine(context, dEntry);
-            FlutterEngineCache.getInstance().put(OverlayConstants.CACHED_TAG, engine);
-        }
+    }
+
+    public void createDartEntry(String engineId, String entryPoint, List<String> args){
+       if(!isOverlayActive(engineId)){
+           FlutterEngineGroup enn = new FlutterEngineGroup(context);
+
+           DartExecutor.DartEntrypoint dEntry = new DartExecutor.DartEntrypoint(
+                   FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+                   entryPoint
+           );
+
+           FlutterEngineGroup.Options options = new FlutterEngineGroup.Options(context);
+           options.setDartEntrypoint(dEntry);
+           options.setDartEntrypointArgs(args);
+           FlutterEngine engine = enn.createAndRunEngine(options);
+
+           FlutterEngineCache.getInstance().put(engineId, engine);
+       }
+    }
+
+    public void destroyDartEntry(String engineId){
+        FlutterEngineCache.getInstance().remove(engineId);
+    }
+
+    public boolean isOverlayActive(String engineId){
+        return FlutterEngineCache.getInstance().contains(engineId);
     }
 
     @Override
@@ -168,11 +207,12 @@ public class FlutterOverlayWindowPlugin implements
 
     @Override
     public void onMessage(@Nullable Object message, @NonNull BasicMessageChannel.Reply reply) {
-        BasicMessageChannel overlayMessageChannel = new BasicMessageChannel(
-                FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG)
-                        .getDartExecutor(),
-                OverlayConstants.MESSENGER_TAG, JSONMessageCodec.INSTANCE);
-        overlayMessageChannel.send(message, reply);
+        Log.d("onMessage", message.toString() );
+//        BasicMessageChannel overlayMessageChannel = new BasicMessageChannel(
+//                FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG).getDartExecutor(),
+//                OverlayConstants.MESSENGER_TAG, JSONMessageCodec.INSTANCE
+//        );
+//        overlayMessageChannel.send(message, reply);
     }
 
     private boolean checkOverlayPermission() {

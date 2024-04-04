@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class TextFieldOverlay extends StatefulWidget {
-  const TextFieldOverlay({Key? key}) : super(key: key);
+  final List<String>? args;
+  const TextFieldOverlay(this.args, {Key? key}) : super(key: key);
 
   @override
   State<TextFieldOverlay> createState() => _TextFieldOverlayState();
@@ -34,8 +35,9 @@ class _TextFieldOverlayState extends State<TextFieldOverlay> {
           child: Center(
             child: Column(
               children: [
-                const TextField(
+                TextFormField(
                   decoration: InputDecoration(hintText: "Write anything"),
+                  initialValue: widget.args?[0] ?? '',
                 ),
                 const SizedBox(height: 50.0),
                 TextButton(

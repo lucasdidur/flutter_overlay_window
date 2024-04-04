@@ -43,7 +43,7 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Plugin example app'),
       ),
       body: Center(
-        child: Column(
+        child: ListView(
           children: [
             TextButton(
               onPressed: () async {
@@ -55,30 +55,16 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 10.0),
             TextButton(
               onPressed: () async {
-                final bool? res =
-                    await FlutterOverlayWindow.requestPermission();
+                final bool? res = await FlutterOverlayWindow.requestPermission();
                 log("status: $res");
               },
               child: const Text("Request Permission"),
             ),
             const SizedBox(height: 10.0),
-            TextButton(
-              onPressed: () async {
-                if (await FlutterOverlayWindow.isActive()) return;
-                await FlutterOverlayWindow.showOverlay(
-                  enableDrag: true,
-                  overlayTitle: "X-SLAYER",
-                  overlayContent: 'Overlay Enabled',
-                  flag: OverlayFlag.defaultFlag,
-                  visibility: NotificationVisibility.visibilityPublic,
-                  positionGravity: PositionGravity.auto,
-                  height: (MediaQuery.of(context).size.height * 0.6).toInt(),
-                  width: WindowSize.matchParent,
-                  startPosition: const OverlayPosition(0, -259),
-                );
-              },
-              child: const Text("Show Overlay"),
-            ),
+            ..._createButton("overlayMain", ['args1']),
+            ..._createButton("overlayMain", ['args2', "'args2'"]),
+            ..._createButton("overlayMain2", ["default 1"]),
+            ..._createButton("overlayMain2", ["default 2"]),
             const SizedBox(height: 10.0),
             TextButton(
               onPressed: () async {
@@ -101,17 +87,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 10.0),
             TextButton(
               onPressed: () {
-                log('Try to close');
-                FlutterOverlayWindow.closeOverlay()
-                    .then((value) => log('STOPPED: alue: $value'));
-              },
-              child: const Text("Close Overlay"),
-            ),
-            const SizedBox(height: 20.0),
-            TextButton(
-              onPressed: () {
-                homePort ??=
-                    IsolateNameServer.lookupPortByName(_kPortNameOverlay);
+                homePort ??= IsolateNameServer.lookupPortByName(_kPortNameOverlay);
                 homePort?.send('Send to overlay: ${DateTime.now()}');
               },
               child: const Text("Send message to overlay"),
@@ -143,5 +119,34 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  _createButton(String entryPoint, [List<String>? args]) {
+    return [
+      TextButton(
+        onPressed: () async {
+          await FlutterOverlayWindow.showOverlay(
+            entryPoint: entryPoint,
+            engineId: entryPoint,
+            args: args,
+            enableDrag: true,
+            overlayContent: 'Overlay Enabled',
+            flag: OverlayFlag.defaultFlag,
+            visibility: NotificationVisibility.visibilityPublic,
+            positionGravity: PositionGravity.auto,
+            height: (MediaQuery.of(context).size.height * 0.6).toInt(),
+            width: WindowSize.matchParent,
+            startPosition: const OverlayPosition(0, -259),
+          );
+        },
+        child: Text("Show Overlay '$entryPoint'"),
+      ),
+      TextButton(
+        onPressed: () {
+          FlutterOverlayWindow.closeOverlay(entryPoint).then((value) => log('STOPPED: value: $value'));
+        },
+        child: Text("Close Overlay '$entryPoint'"),
+      ),
+    ];
   }
 }
